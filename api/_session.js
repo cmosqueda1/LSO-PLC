@@ -71,23 +71,30 @@ async function loginIam() {
 }
 
 async function getIamAuthCode() {
-  // This matches your HAR pattern: /oauth2/authorize -> 302 to omsv2 /auth-code?code=...
-  // NOTE: exact authorize params vary by app. You should paste the real authorize URL if this fails.
-  // We'll request the marketplace/omsv2 redirect used in your flow.
+  // Match HAR exactly (note the trailing "&continue" with no "=" value)
   const authorizeUrl =
-    `${IAM_BASE}/oauth2/authorize?response_type=code&client_id=marketplace` +
-    `&redirect_uri=${encodeURIComponent("https://omsv2.item.com/auth-code")}`;
+    `${IAM_BASE}/oauth2/authorize` +
+    `?response_type=code` +
+    `&client_id=69d8d41b-651f-4af6-b3e9-04a33308034e` +
+    `&scope=profile+email+phone+openid` +
+    `&redirect_uri=${encodeURIComponent("https://omsv2.item.com/auth-code")}` +
+    `&state=%252Fdashboard%252Fplc-report` +
+    `&continue`;
 
   const r = await fetch(authorizeUrl, { method: "GET", redirect: "manual" });
+
   if (r.status !== 302) {
     const t = await r.text();
     throw new Error(`Expected 302 from /oauth2/authorize, got ${r.status}: ${t.slice(0,200)}`);
   }
 
   const loc = r.headers.get("location") || "";
+  // Example from your HAR:
+  // https://omsv2.item.com/auth-code?code=...&state=%252Fdashboard%252Fplc-report
   const u = new URL(loc);
   const code = u.searchParams.get("code");
   if (!code) throw new Error("No ?code= found in authorize redirect Location");
+
   return code;
 }
 
