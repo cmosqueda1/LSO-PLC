@@ -1,110 +1,437 @@
-<script>
-  // ===== AUTH STATE =====
-  let authed = false;
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OMS BI Query Runner</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background:#f6f7fb; color:#111; }
+    header { padding: 14px 18px; background: #111827; color: #fff; }
+    header h1 { margin:0; font-size: 16px; font-weight: 650; }
+    header p { margin:6px 0 0; font-size: 12px; opacity: .85; }
+    .wrap { padding: 14px 18px 26px; max-width: 1400px; margin: 0 auto; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 1px 1px rgba(0,0,0,.03); }
+    .filters { padding: 14px; }
+    .grid { display:grid; grid-template-columns: repeat(6, minmax(160px, 1fr)); gap: 10px; }
+    @media (max-width: 1200px){ .grid{ grid-template-columns: repeat(4, minmax(160px, 1fr)); } }
+    @media (max-width: 900px){ .grid{ grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    label { font-size: 12px; color:#374151; }
+    input, select {
+      height: 34px; border-radius: 9px; border: 1px solid #d1d5db;
+      padding: 0 10px; font-size: 13px; background:#fff; outline: none;
+    }
+    input:focus, select:focus { border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; padding-top: 10px; }
+    .btn { height: 36px; border: 0; border-radius: 10px; padding: 0 12px; font-weight: 600; font-size: 13px; cursor: pointer; background:#4f46e5; color:#fff; }
+    .btn.secondary { background:#111827; }
+    .btn.ghost { background: #f3f4f6; color:#111827; border:1px solid #e5e7eb; }
+    .btn:disabled { opacity:.55; cursor:not-allowed; }
+    .meta { font-size: 12px; color:#6b7280; }
+    .divider { height:1px; background:#e5e7eb; }
+    .results { padding: 14px; }
+    .status { display:flex; justify-content: space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 10px; }
+    .pill { font-size: 12px; background:#f3f4f6; border:1px solid #e5e7eb; padding: 6px 10px; border-radius: 999px; color:#111827; }
+    .error { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
+    .tableWrap { overflow:auto; border:1px solid #e5e7eb; border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { position: sticky; top: 0; background:#f9fafb; border-bottom:1px solid #e5e7eb; text-align:left; padding: 10px; white-space:nowrap; }
+    tbody td { border-top:1px solid #f1f5f9; padding: 9px 10px; white-space:nowrap; }
+    tbody tr:hover { background:#fafafa; }
+    .small { font-size: 11px; color:#6b7280; }
+    .right { margin-left:auto; }
+    .inputs-inline { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .hint { font-size: 12px; color:#6b7280; margin-top: 8px; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; background:#f3f4f6; border:1px solid #e5e7eb; padding:2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>OMS BI Query Runner</h1>
+  <p>On load: server-side auth → fetch results → render table → CSV export.</p>
+</header>
 
-  function setAuthed(state) {
-    authed = !!state;
-    const pill = document.getElementById("authPill");
-    const runBtn = document.getElementById("runBtn");
-    if (pill) pill.textContent = authed ? "Logged in" : "Not logged in";
-    if (pill) pill.className = authed ? "pill" : "pill error";
-    if (runBtn) runBtn.disabled = !authed;
+<div class="wrap">
+  <div class="card">
+    <div class="filters">
+      <div class="grid">
+        <div class="field">
+          <label for="airbillNo">AirbillNo</label>
+          <select id="airbillNo" multiple title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="billToCode">Bill to Customer Code</label>
+          <select id="billToCode" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="billToName">Bill to Customer Name</label>
+          <select id="billToName" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="serviceType">Service Type</label>
+          <select id="serviceType" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="arriveHub">Arrive Hub</label>
+          <select id="arriveHub" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="asnStart">ASN Create Date Start</label>
+          <input id="asnStart" type="date" value="2026-01-07" />
+          <div class="small">YYYY-MM-DD</div>
+        </div>
+
+        <div class="field">
+          <label for="asnEnd">ASN Create Date End</label>
+          <input id="asnEnd" type="date" value="2026-01-07" />
+          <div class="small">YYYY-MM-DD</div>
+        </div>
+
+        <div class="field">
+          <label for="pickupStart">Pickup Date Start</label>
+          <input id="pickupStart" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="pickupEnd">Pickup Date End</label>
+          <input id="pickupEnd" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="deliveredStart">Delivered Date Start</label>
+          <input id="deliveredStart" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="deliveredEnd">Delivered Date End</label>
+          <input id="deliveredEnd" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="lastScanEvent">Last Scan Event</label>
+          <select id="lastScanEvent" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="lastScanStart">Last Scan Event Date Start</label>
+          <input id="lastScanStart" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="lastScanEnd">Last Scan Event Date End</label>
+          <input id="lastScanEnd" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="driver">Driver</label>
+          <select id="driver" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="trip">Trip</label>
+          <select id="trip" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="sla">SLA</label>
+          <select id="sla" multiple>
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="runBtn">Run Query</button>
+        <button class="btn ghost" id="resetBtn" type="button">Reset</button>
+        <span class="meta right">Backend endpoints: <span class="kbd">/api/init</span>, <span class="kbd">/api/results</span></span>
+      </div>
+
+      <div class="hint">
+        The page will auto-authenticate on load by calling <span class="kbd">/api/init</span>.
+        Credentials must be stored in Vercel env vars (server-side).
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="results">
+      <div class="status">
+        <div class="inputs-inline">
+          <span class="pill" id="statusPill">Booting…</span>
+          <span class="pill" id="countPill">Rows: 0</span>
+          <span class="pill" id="timePill">Time: —</span>
+        </div>
+
+        <div class="inputs-inline">
+          <input id="searchBox" type="text" placeholder="Filter visible table rows..." style="width: 280px;" />
+          <button class="btn secondary" id="exportBtn" disabled>Export CSV</button>
+        </div>
+      </div>
+
+      <div id="errorBox" class="pill error" style="display:none; margin-bottom: 10px;"></div>
+
+      <div class="tableWrap">
+        <table id="resultsTable">
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="hint">
+        This UI does NOT do SSO itself. The server does. If you get 404 for <span class="kbd">/api/results</span>, your Vercel API route isn’t deployed.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const QUERY_ID = 5617;
+
+  const $ = (id) => document.getElementById(id);
+
+  function setStatus(text, type = "idle") {
+    const pill = $("statusPill");
+    pill.textContent = text;
+    pill.className = "pill";
+    if (type === "error") pill.classList.add("error");
   }
 
   function showError(msg) {
-    const box = document.getElementById("errorBox");
-    if (!box) return;
+    const box = $("errorBox");
     if (!msg) { box.style.display = "none"; box.textContent = ""; return; }
     box.style.display = "block";
     box.textContent = msg;
   }
 
-  async function callJson(url, bodyObj) {
+  function getMultiSelectValues(selectEl) {
+    const selected = Array.from(selectEl.selectedOptions).map(o => o.value).filter(Boolean);
+    return selected.length ? selected : ["ALL"];
+  }
+
+  function dateOrAll(inputEl) {
+    const v = (inputEl.value || "").trim();
+    return v ? v : "ALL";
+  }
+
+  function buildPayloadFromUI() {
+    return {
+      id: QUERY_ID,
+      parameters: {
+        "AirbillNo": getMultiSelectValues($("airbillNo")),
+        "Bill to Customer Code": getMultiSelectValues($("billToCode")),
+        "Bill to Customer Name": getMultiSelectValues($("billToName")),
+        "Service Type": getMultiSelectValues($("serviceType")),
+        "Arrive Hub": getMultiSelectValues($("arriveHub")),
+        "ASN Create Date Start": dateOrAll($("asnStart")),
+        "ASN Create Date End": dateOrAll($("asnEnd")),
+        "Pickup Date Start": dateOrAll($("pickupStart")),
+        "Pickup Date End": dateOrAll($("pickupEnd")),
+        "Delivered Date Start": dateOrAll($("deliveredStart")),
+        "Delivered Date End": dateOrAll($("deliveredEnd")),
+        "Last Scan Event": getMultiSelectValues($("lastScanEvent")),
+        "Last Scan Event Date Start": dateOrAll($("lastScanStart")),
+        "Last Scan Event Date End": dateOrAll($("lastScanEnd")),
+        "Driver": getMultiSelectValues($("driver")),
+        "Trip": getMultiSelectValues($("trip")),
+        "SLA": getMultiSelectValues($("sla")),
+      },
+      apply_auto_limit: false
+    };
+  }
+
+  function normalizeResults(json) {
+    const qr = json?.data?.query_result ?? json?.query_result ?? json;
+    const data = qr?.data ?? qr;
+    return { columns: data?.columns ?? [], rows: data?.rows ?? [] };
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function clearTable() {
+    $("thead").innerHTML = "";
+    $("tbody").innerHTML = "";
+    $("exportBtn").disabled = true;
+    $("countPill").textContent = "Rows: 0";
+    $("timePill").textContent = "Time: —";
+  }
+
+  function renderTable(columns, rows) {
+    const colNames = columns.map(c => c?.friendly_name || c?.name || "");
+    $("thead").innerHTML = `<tr>${colNames.map(n => `<th>${escapeHtml(n)}</th>`).join("")}</tr>`;
+
+    $("tbody").innerHTML = rows.map(r => {
+      return `<tr>${columns.map(c => {
+        const key = c?.name;
+        const val = (key && r && Object.prototype.hasOwnProperty.call(r, key)) ? r[key] : "";
+        return `<td>${escapeHtml(val)}</td>`;
+      }).join("")}</tr>`;
+    }).join("");
+
+    $("countPill").textContent = `Rows: ${rows.length}`;
+    $("exportBtn").disabled = rows.length === 0;
+    window.__lastResults = { columns, rows };
+  }
+
+  function filterVisibleRows(searchText) {
+    const t = (searchText || "").toLowerCase();
+    const rows = Array.from($("tbody").querySelectorAll("tr"));
+    rows.forEach(tr => {
+      tr.style.display = !t || tr.innerText.toLowerCase().includes(t) ? "" : "none";
+    });
+  }
+
+  function toCsvValue(v) {
+    const s = String(v ?? "");
+    const needsWrap = /[",\n\r]/.test(s);
+    const escaped = s.replaceAll('"', '""');
+    return needsWrap ? `"${escaped}"` : escaped;
+  }
+
+  function buildCsv(columns, rows) {
+    const headers = columns.map(c => c?.friendly_name || c?.name || "");
+    const keys = columns.map(c => c?.name || "");
+    const lines = [];
+    lines.push(headers.map(toCsvValue).join(","));
+    for (const r of rows) lines.push(keys.map(k => toCsvValue(r?.[k] ?? "")).join(","));
+    return lines.join("\r\n");
+  }
+
+  function downloadFile(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function callJson(url, opts) {
     const res = await fetch(url, {
-      method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bodyObj || {})
+      ...opts,
+      headers: { "Content-Type": "application/json", ...(opts?.headers || {}) }
     });
 
     const text = await res.text();
     let json;
-    try { json = JSON.parse(text); }
-    catch {
+    try { json = JSON.parse(text); } catch {
       throw new Error(`Backend did not return JSON. HTTP ${res.status}. Body: ${text.slice(0, 200)}…`);
     }
-
-    if (!res.ok) {
-      throw new Error(json?.error || json?.message || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(json?.error || json?.message || `HTTP ${res.status}`);
     return json;
   }
 
-  // ===== LOGIN =====
-  async function login() {
+  async function initAuth() {
+    setStatus("Authenticating…");
+    await callJson("/api/init", { method: "POST", body: JSON.stringify({}) });
+  }
+
+  async function runQuery() {
     showError("");
-    setAuthed(false);
-
-    const username = (document.getElementById("username")?.value || "").trim();
-    const password = (document.getElementById("password")?.value || "");
-
-    if (!username || !password) {
-      showError("Enter username and password.");
-      return;
-    }
+    clearTable();
+    $("runBtn").disabled = true;
+    setStatus("Running…");
+    const start = performance.now();
 
     try {
-      const r = await callJson("/api/init", { username, password });
-      if (r?.ok === true) {
-        setAuthed(true);
-      } else {
-        setAuthed(false);
-        showError("Login failed (no ok:true returned).");
-      }
+      const payload = buildPayloadFromUI();
+      const json = await callJson("/api/results", { method: "POST", body: JSON.stringify(payload) });
+      const { columns, rows } = normalizeResults(json);
+      renderTable(columns, rows);
+
+      $("timePill").textContent = `Time: ${Math.round(performance.now() - start)} ms`;
+      setStatus("Done");
     } catch (e) {
-      setAuthed(false);
+      setStatus("Error", "error");
+      showError(e?.message || String(e));
+    } finally {
+      $("runBtn").disabled = false;
+    }
+  }
+
+  function resetFilters() {
+    ["airbillNo","billToCode","billToName","serviceType","arriveHub","lastScanEvent","driver","trip","sla"].forEach(id => {
+      const el = $(id);
+      Array.from(el.options).forEach(o => o.selected = (o.value === "ALL"));
+    });
+    $("asnStart").value = "2026-01-07";
+    $("asnEnd").value = "2026-01-07";
+    ["pickupStart","pickupEnd","deliveredStart","deliveredEnd","lastScanStart","lastScanEnd"].forEach(id => $(id).value = "");
+    $("searchBox").value = "";
+    showError("");
+    clearTable();
+    setStatus("Idle");
+  }
+
+  function exportCsv() {
+    const data = window.__lastResults;
+    if (!data?.columns?.length) return;
+    const csv = buildCsv(data.columns, data.rows);
+    const stamp = new Date().toISOString().slice(0,19).replaceAll(":","-");
+    downloadFile(`results_${QUERY_ID}_${stamp}.csv`, csv, "text/csv;charset=utf-8");
+  }
+
+  $("runBtn").addEventListener("click", runQuery);
+  $("resetBtn").addEventListener("click", resetFilters);
+  $("exportBtn").addEventListener("click", exportCsv);
+  $("searchBox").addEventListener("input", (e) => filterVisibleRows(e.target.value));
+
+  // On load: init auth, then auto-run query with defaults
+  (async function boot(){
+    try {
+      await initAuth();
+      await runQuery();
+    } catch (e) {
+      setStatus("Error", "error");
       showError(e?.message || String(e));
     }
-  }
-
-  // ===== SESSION REUSE ON LOAD =====
-  async function tryReuseSession() {
-    showError("");
-    setAuthed(false);
-    try {
-      const r = await callJson("/api/init", {});
-      if (r?.ok === true) setAuthed(true);
-      else setAuthed(false);
-    } catch {
-      setAuthed(false);
-    }
-  }
-
-  // ===== RUN QUERY (uses existing payload builder in your file) =====
-  async function runQuery(payload) {
-    showError("");
-    if (!authed) {
-      showError("Login required. Click Login first.");
-      return null;
-    }
-    try {
-      return await callJson("/api/results", payload);
-    } catch (e) {
-      // If backend says auth is missing/expired, force UI to reflect it
-      const msg = e?.message || String(e);
-      if (/login required|not authenticated|401/i.test(msg)) setAuthed(false);
-      showError(msg);
-      return null;
-    }
-  }
-
-  // Wire buttons (keep IDs the same as your current file)
-  document.getElementById("loginBtn")?.addEventListener("click", login);
-
-  // On load, try to reuse existing session cookie
-  tryReuseSession();
-
-  // IMPORTANT:
-  // Wherever your current code does the Run Query click handler,
-  // change it to call runQuery(payload) and only render if result != null.
+  })();
 </script>
+</body>
+</html>
