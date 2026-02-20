@@ -1,15 +1,15 @@
 // api/_session.js
 // IAM -> OMSv2 -> BI Dashboard (Redash) session helper
 //
-// NEW behavior:
-// - No ITEM_USERNAME / ITEM_PASSWORD env vars
-// - User provides credentials to /api/init
-// - We store only tokens/cookies in an encrypted session cookie (no password stored)
+// Key fix:
+// - DO NOT store the entire tough-cookie jar in the browser cookie (too large -> browser drops it)
+// - Instead store ONLY the BI cookies we need (csrf_token + session + any other BI cookies)
+// - Store omsAccessToken + biCookies + authedAt in encrypted session cookie
 //
 // Required env vars:
-//   SESSION_SECRET   (>= 16 chars; used only to encrypt/decrypt session cookie)
+//   SESSION_SECRET   (>= 16 chars)
 //
-// IMPORTANT: Your Vercel API routes that import this file MUST be node runtime:
+// Vercel routes importing this MUST be node runtime:
 //   export const config = { runtime: "nodejs" };
 
 import crypto from "crypto";
@@ -25,7 +25,7 @@ const BROWSER_UA =
 
 const COOKIE_NAME = "plc_session";
 const MAX_AGE_SECONDS = 60 * 60; // 1 hour
-const REAUTH_TTL_MS = 15 * 60 * 1000; // 15 minutes (matches your old warm-cache behavior)
+const REAUTH_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 // --------------------
 // Cookie crypto helpers
@@ -150,11 +150,13 @@ export function setSession(res, sessionData) {
     createdAt: new Date().toISOString(),
   };
   const packed = encryptJson(payload);
-  setCookie(res, COOKIE_NAME, packed, { maxAge: MAX_AGE_SECONDS });
+
+  // NOTE: secure=true is correct on Vercel (https). If you test on http localhost, set secure:false.
+  setCookie(res, COOKIE_NAME, packed, { maxAge: MAX_AGE_SECONDS, secure: true });
 }
 
 // --------------------
-// Existing flow helpers
+// Flow helpers
 // --------------------
 function formEncode(obj) {
   return Object.entries(obj)
@@ -178,23 +180,20 @@ function jarGetCookieValue(jar, url, name) {
   });
 }
 
-function serializeJar(jar) {
+function jarGetAllCookies(jar, url) {
   return new Promise((resolve, reject) => {
-    jar.serialize((err, data) => {
+    jar.getCookies(url, (err, cookies) => {
       if (err) return reject(err);
-      resolve(data);
+      resolve(cookies || []);
     });
   });
 }
 
-function deserializeJar(jarJson) {
-  if (!jarJson) return new tough.CookieJar();
-  return new Promise((resolve, reject) => {
-    tough.CookieJar.deserialize(jarJson, (err, jar) => {
-      if (err) return reject(err);
-      resolve(jar);
-    });
-  });
+function cookiesToHeader(cookieObj) {
+  return Object.entries(cookieObj || {})
+    .filter(([k, v]) => k && v !== undefined && v !== null && String(v).length > 0)
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
 }
 
 async function loginIam(fetch, jar, username, password) {
@@ -379,6 +378,7 @@ async function verifyBiTokenAndSetCookies(fetch, jar, idToken) {
     throw new Error(`BI verify_token failed HTTP ${r.status}: ${t.slice(0, 200)}`);
   }
 
+  // Ensure cookies exist in jar now
   const csrf = await jarGetCookieValue(jar, BI_BASE, "csrf_token");
   const sess = await jarGetCookieValue(jar, BI_BASE, "session");
   if (!csrf || !sess) throw new Error("BI verify_token completed but BI cookies (session/csrf_token) are missing");
@@ -390,21 +390,14 @@ async function verifyBiTokenAndSetCookies(fetch, jar, idToken) {
 export async function ensureAuthed(session, creds = null) {
   assertSecret();
 
-  const jar = await deserializeJar(session?.jarJson);
-  const fetch = fetchCookie(globalThis.fetch, jar);
-
   const now = Date.now();
 
-  // Reuse existing session if still fresh AND cookies present
+  // Reuse existing session if still fresh AND cookies exist
   if (session?.authedAt && now - session.authedAt < REAUTH_TTL_MS && session?.omsAccessToken) {
-    const csrf = await jarGetCookieValue(jar, BI_BASE, "csrf_token");
-    const sess = await jarGetCookieValue(jar, BI_BASE, "session");
+    const csrf = session?.biCookies?.csrf_token;
+    const sess = session?.biCookies?.session;
     if (csrf && sess) {
-      return {
-        jarJson: await serializeJar(jar),
-        authedAt: session.authedAt,
-        omsAccessToken: session.omsAccessToken,
-      };
+      return session;
     }
   }
 
@@ -412,6 +405,10 @@ export async function ensureAuthed(session, creds = null) {
   if (!creds?.username || !creds?.password) {
     throw new Error("Not authenticated. Please login.");
   }
+
+  // Fresh login flow uses a real jar (server-side only)
+  const jar = new tough.CookieJar();
+  const fetch = fetchCookie(globalThis.fetch, jar);
 
   await loginIam(fetch, jar, creds.username, creds.password);
 
@@ -422,21 +419,36 @@ export async function ensureAuthed(session, creds = null) {
   const idToken = await getBiIdToken(fetch, omsToken);
   await verifyBiTokenAndSetCookies(fetch, jar, idToken);
 
+  // Extract ONLY BI cookies into a small object for storage
+  const biCookieList = await jarGetAllCookies(jar, BI_BASE);
+  const biCookies = {};
+  for (const c of biCookieList) {
+    // keep all BI cookies (usually only a few). This stays small.
+    biCookies[c.key] = c.value;
+  }
+
+  // Validate key cookies exist
+  if (!biCookies.csrf_token || !biCookies.session) {
+    throw new Error(
+      `BI cookies missing after auth. Found keys: ${Object.keys(biCookies).join(", ")}`
+    );
+  }
+
   return {
-    jarJson: await serializeJar(jar),
     authedAt: Date.now(),
     omsAccessToken: omsToken,
+    biCookies, // SMALL payload -> safe to store in session cookie
   };
 }
 
 export async function callBiResults(session, payload) {
   assertSecret();
 
-  const jar = await deserializeJar(session?.jarJson);
-  const fetch = fetchCookie(globalThis.fetch, jar);
+  const csrf = session?.biCookies?.csrf_token;
+  if (!csrf) throw new Error("Missing csrf_token in session. Login required.");
 
-  const csrf = await jarGetCookieValue(jar, BI_BASE, "csrf_token");
-  if (!csrf) throw new Error("Missing csrf_token cookie for BI results call");
+  const cookieHeader = cookiesToHeader(session?.biCookies);
+  if (!cookieHeader) throw new Error("Missing BI cookies in session. Login required.");
 
   const r = await fetch(`${BI_BASE}/api/queries/${payload.id}/results`, {
     method: "POST",
@@ -444,6 +456,7 @@ export async function callBiResults(session, payload) {
       Accept: "application/json",
       "Content-Type": "application/json",
       "x-csrf-token": csrf,
+      Cookie: cookieHeader,
       Origin: BI_BASE,
       Referer: `${BI_BASE}/`,
       "User-Agent": BROWSER_UA,
@@ -456,11 +469,10 @@ export async function callBiResults(session, payload) {
   try {
     json = JSON.parse(text);
   } catch {
-    // keep {}
+    throw new Error(`BI results did not return JSON. HTTP ${r.status}. Body: ${text.slice(0, 200)}…`);
   }
 
   if (!r.ok) throw new Error(json?.message || json?.error || `BI results failed HTTP ${r.status}`);
 
-  // Refresh jar in case Redash rotated cookies
   return json;
 }
