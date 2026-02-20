@@ -3,329 +3,259 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>LSO PLC Report</title>
+  <title>OMS BI Runner</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background:#f6f7fb; color:#111; }
-    header { padding: 14px 18px; background: #111827; color: #fff; }
-    header h1 { margin:0; font-size: 16px; font-weight: 650; }
-    header p { margin:6px 0 0; font-size: 12px; opacity: .85; }
-    .wrap { padding: 14px 18px 26px; max-width: 1400px; margin: 0 auto; }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 1px 1px rgba(0,0,0,.03); }
-    .filters { padding: 14px; }
-    .grid { display:grid; grid-template-columns: repeat(6, minmax(160px, 1fr)); gap: 10px; }
-    @media (max-width: 1200px){ .grid{ grid-template-columns: repeat(4, minmax(160px, 1fr)); } }
-    @media (max-width: 900px){ .grid{ grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
-    .field { display:flex; flex-direction:column; gap:6px; }
-    label { font-size: 12px; color:#374151; }
-    input, select {
-      height: 34px; border-radius: 9px; border: 1px solid #d1d5db;
-      padding: 0 10px; font-size: 13px; background:#fff; outline: none;
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --text:#111827;
+      --muted:#6b7280;
+      --primary:#4f46e5;
+      --danger:#b91c1c;
+      --dangerBg:#fef2f2;
+      --dangerBorder:#fecaca;
+      --pill:#f3f4f6;
     }
-    input:focus, select:focus { border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
-    .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; padding-top: 10px; }
-    .btn { height: 36px; border: 0; border-radius: 10px; padding: 0 12px; font-weight: 600; font-size: 13px; cursor: pointer; background:#4f46e5; color:#fff; }
-    .btn.secondary { background:#111827; }
-    .btn.ghost { background: #f3f4f6; color:#111827; border:1px solid #e5e7eb; }
-    .btn:disabled { opacity:.55; cursor:not-allowed; }
-    .meta { font-size: 12px; color:#6b7280; }
-    .divider { height:1px; background:#e5e7eb; }
-    .results { padding: 14px; }
-    .status { display:flex; justify-content: space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 10px; }
-    .pill { font-size: 12px; background:#f3f4f6; border:1px solid #e5e7eb; padding: 6px 10px; border-radius: 999px; color:#111827; }
-    .error { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
-    .tableWrap { overflow:auto; border:1px solid #e5e7eb; border-radius: 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead th { position: sticky; top: 0; background:#f9fafb; border-bottom:1px solid #e5e7eb; text-align:left; padding: 10px; white-space:nowrap; }
-    tbody td { border-top:1px solid #f1f5f9; padding: 9px 10px; white-space:nowrap; }
-    tbody tr:hover { background:#fafafa; }
-    .small { font-size: 11px; color:#6b7280; }
-    .right { margin-left:auto; }
-    .inputs-inline { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .hint { font-size: 12px; color:#6b7280; margin-top: 8px; }
-    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; background:#f3f4f6; border:1px solid #e5e7eb; padding:2px 6px; border-radius: 6px; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg);color:var(--text);}
+    .wrap{max-width:1400px;margin:18px auto;padding:0 18px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 1px rgba(0,0,0,.03);}
+    .hdr{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .hdr h1{margin:0;font-size:16px;font-weight:700;}
+    .hdr .meta{margin-left:auto;font-size:12px;color:var(--muted);}
+    .pill{font-size:12px;background:var(--pill);border:1px solid var(--border);padding:6px 10px;border-radius:999px;}
+    .pill.error{color:var(--danger);background:var(--dangerBg);border-color:var(--dangerBorder);}
+    .grid{display:grid;grid-template-columns:repeat(6,minmax(160px,1fr));gap:10px;padding:14px 16px;}
+    @media(max-width:1200px){.grid{grid-template-columns:repeat(4,minmax(160px,1fr));}}
+    @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(160px,1fr));}}
+    .field{display:flex;flex-direction:column;gap:6px;}
+    label{font-size:12px;color:#374151;}
+    input,select{height:34px;border-radius:9px;border:1px solid #d1d5db;padding:0 10px;font-size:13px;background:#fff;outline:none;}
+    input:focus,select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 16px 14px;}
+    .btn{height:36px;border:0;border-radius:10px;padding:0 12px;font-weight:700;font-size:13px;cursor:pointer;background:var(--primary);color:#fff;}
+    .btn.secondary{background:#111827;}
+    .btn:disabled{opacity:.55;cursor:not-allowed;}
+    .small{font-size:11px;color:var(--muted);}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;background:var(--pill);border:1px solid var(--border);padding:2px 6px;border-radius:6px;}
+    .divider{height:1px;background:var(--border);}
+    .results{padding:14px 16px;}
+    .status{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:10px;}
+    .tableWrap{overflow:auto;border:1px solid var(--border);border-radius:12px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    thead th{position:sticky;top:0;background:#f9fafb;border-bottom:1px solid var(--border);text-align:left;padding:10px;white-space:nowrap;}
+    tbody td{border-top:1px solid #f1f5f9;padding:9px 10px;white-space:nowrap;}
+    tbody tr:hover{background:#fafafa;}
+    .errorBox{margin:10px 0 0;padding:10px 12px;border-radius:12px;border:1px solid var(--dangerBorder);background:var(--dangerBg);color:var(--danger);font-size:13px;display:none;}
+    .loginbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-left:auto;}
+    .loginbar .field{min-width:220px;}
   </style>
 </head>
 <body>
-<header>
-  <h1>LSO PLC Report</h1>
-  <p>On load: server-side auth → fetch results → render table → CSV export.</p>
-</header>
+  <div class="wrap">
+    <div class="card">
+      <div class="hdr">
+        <div>
+          <h1>OMS BI Runner</h1>
+          <div class="small">Backend endpoints: <span class="kbd">/api/init</span>, <span class="kbd">/api/results</span></div>
+        </div>
 
-<div class="wrap">
-  <div class="card">
-    <div class="filters">
+        <div class="loginbar">
+          <div class="field">
+            <label for="username">OMS Username</label>
+            <input id="username" autocomplete="username" placeholder="username" />
+          </div>
+          <div class="field">
+            <label for="password">OMS Password</label>
+            <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+          </div>
+          <button class="btn secondary" id="loginBtn">Login</button>
+          <span class="pill" id="authPill">Not logged in</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- FILTERS -->
       <div class="grid">
         <div class="field">
-          <label for="airbillNo">AirbillNo</label>
-          <select id="airbillNo" multiple title="Hold Ctrl/⌘ to multi-select">
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>AirbillNo</label>
+          <select id="airbillNo" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="billToCode">Bill to Customer Code</label>
-          <select id="billToCode" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>Bill to Customer Code</label>
+          <select id="billToCode" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="billToName">Bill to Customer Name</label>
-          <select id="billToName" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>Bill to Customer Name</label>
+          <select id="billToName" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="serviceType">Service Type</label>
-          <select id="serviceType" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>Service Type</label>
+          <select id="serviceType" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="arriveHub">Arrive Hub</label>
-          <select id="arriveHub" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>Arrive Hub</label>
+          <select id="arriveHub" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="asnStart">ASN Create Date Start</label>
-          <input id="asnStart" type="date" value="2026-01-07" />
+          <label>ASN Create Date Start</label>
+          <input id="asnStart" type="date" />
           <div class="small">YYYY-MM-DD</div>
         </div>
 
         <div class="field">
-          <label for="asnEnd">ASN Create Date End</label>
-          <input id="asnEnd" type="date" value="2026-01-07" />
+          <label>ASN Create Date End</label>
+          <input id="asnEnd" type="date" />
           <div class="small">YYYY-MM-DD</div>
         </div>
 
         <div class="field">
-          <label for="pickupStart">Pickup Date Start</label>
+          <label>Pickup Date Start</label>
           <input id="pickupStart" type="date" />
           <div class="small">Blank = ALL</div>
         </div>
 
         <div class="field">
-          <label for="pickupEnd">Pickup Date End</label>
+          <label>Pickup Date End</label>
           <input id="pickupEnd" type="date" />
           <div class="small">Blank = ALL</div>
         </div>
 
         <div class="field">
-          <label for="deliveredStart">Delivered Date Start</label>
+          <label>Delivered Date Start</label>
           <input id="deliveredStart" type="date" />
           <div class="small">Blank = ALL</div>
         </div>
 
         <div class="field">
-          <label for="deliveredEnd">Delivered Date End</label>
+          <label>Delivered Date End</label>
           <input id="deliveredEnd" type="date" />
           <div class="small">Blank = ALL</div>
         </div>
 
         <div class="field">
-          <label for="lastScanEvent">Last Scan Event</label>
-          <select id="lastScanEvent" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>Last Scan Event</label>
+          <select id="lastScanEvent" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="lastScanStart">Last Scan Event Date Start</label>
+          <label>Last Scan Event Date Start</label>
           <input id="lastScanStart" type="date" />
           <div class="small">Blank = ALL</div>
         </div>
 
         <div class="field">
-          <label for="lastScanEnd">Last Scan Event Date End</label>
+          <label>Last Scan Event Date End</label>
           <input id="lastScanEnd" type="date" />
           <div class="small">Blank = ALL</div>
         </div>
 
         <div class="field">
-          <label for="driver">Driver</label>
-          <select id="driver" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>Driver</label>
+          <select id="driver" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="trip">Trip</label>
-          <select id="trip" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>Trip</label>
+          <select id="trip" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
 
         <div class="field">
-          <label for="sla">SLA</label>
-          <select id="sla" multiple>
-            <option value="ALL" selected>ALL</option>
-          </select>
+          <label>SLA</label>
+          <select id="sla" multiple><option value="ALL" selected>ALL</option></select>
           <div class="small">Multi-select. Default: ALL</div>
         </div>
       </div>
 
       <div class="row">
-        <button class="btn" id="runBtn">Run Query</button>
-        <button class="btn ghost" id="resetBtn" type="button">Reset</button>
-        <span class="meta right">Backend endpoints: <span class="kbd">/api/init</span>, <span class="kbd">/api/results</span></span>
+        <button class="btn" id="runBtn" disabled>Run Query</button>
+        <button class="btn secondary" id="resetBtn">Reset</button>
+        <span class="pill" id="statusPill">Idle</span>
+        <span class="pill" id="rowsPill">Rows: 0</span>
+        <span class="pill" id="timePill">Time: —</span>
+        <span class="meta" style="margin-left:auto;font-size:12px;color:var(--muted);">
+          This UI does NOT do SSO itself. The server does. If you get 404 for <span class="kbd">/api/results</span>, your Vercel API route isn't deployed.
+        </span>
       </div>
 
-      <div class="hint">
-        The page will auto-authenticate on load by calling <span class="kbd">/api/init</span>.
-        Credentials must be stored in Vercel env vars (server-side).
+      <div class="row" style="padding-top:0;">
+        <div class="errorBox" id="errorBox"></div>
       </div>
-    </div>
 
-    <div class="divider"></div>
+      <div class="divider"></div>
 
-    <div class="results">
-      <div class="status">
-        <div class="inputs-inline">
-          <span class="pill" id="statusPill">Booting…</span>
-          <span class="pill" id="countPill">Rows: 0</span>
-          <span class="pill" id="timePill">Time: —</span>
+      <div class="results">
+        <div class="status">
+          <div class="pill" id="countPill"></div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <input id="searchBox" placeholder="Filter visible table rows…" style="height:36px;width:280px;" />
+            <button class="btn secondary" id="exportBtn">Export CSV</button>
+          </div>
         </div>
 
-        <div class="inputs-inline">
-          <input id="searchBox" type="text" placeholder="Filter visible table rows..." style="width: 280px;" />
-          <button class="btn secondary" id="exportBtn" disabled>Export CSV</button>
+        <div class="tableWrap">
+          <table id="tbl">
+            <thead><tr id="theadRow"></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
         </div>
-      </div>
-
-      <div id="errorBox" class="pill error" style="display:none; margin-bottom: 10px;"></div>
-
-      <div class="tableWrap">
-        <table id="resultsTable">
-          <thead id="thead"></thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-
-      <div class="hint">
-        This UI does NOT do SSO itself. The server does. If you get 404 for <span class="kbd">/api/results</span>, your Vercel API route isn’t deployed.
       </div>
     </div>
   </div>
-</div>
 
 <script>
-  const QUERY_ID = 5617;
+  // ----------------------------
+  // Config (unchanged from your page)
+  // ----------------------------
+  const QUERY_ID = 2575;
 
+  // ----------------------------
+  // Helpers
+  // ----------------------------
   const $ = (id) => document.getElementById(id);
 
-  function setStatus(text, type = "idle") {
-    const pill = $("statusPill");
-    pill.textContent = text;
-    pill.className = "pill";
-    if (type === "error") pill.classList.add("error");
+  function setStatus(text, type) {
+    const el = $("statusPill");
+    el.textContent = text;
+    el.className = "pill" + (type === "error" ? " error" : "");
   }
 
   function showError(msg) {
     const box = $("errorBox");
-    if (!msg) { box.style.display = "none"; box.textContent = ""; return; }
+    if (!msg) {
+      box.style.display = "none";
+      box.textContent = "";
+      return;
+    }
     box.style.display = "block";
     box.textContent = msg;
   }
 
-  function getMultiSelectValues(selectEl) {
-    const selected = Array.from(selectEl.selectedOptions).map(o => o.value).filter(Boolean);
-    return selected.length ? selected : ["ALL"];
-  }
-
-  function dateOrAll(inputEl) {
-    const v = (inputEl.value || "").trim();
-    return v ? v : "ALL";
-  }
-
-  function buildPayloadFromUI() {
-    return {
-      id: QUERY_ID,
-      parameters: {
-        "AirbillNo": getMultiSelectValues($("airbillNo")),
-        "Bill to Customer Code": getMultiSelectValues($("billToCode")),
-        "Bill to Customer Name": getMultiSelectValues($("billToName")),
-        "Service Type": getMultiSelectValues($("serviceType")),
-        "Arrive Hub": getMultiSelectValues($("arriveHub")),
-        "ASN Create Date Start": dateOrAll($("asnStart")),
-        "ASN Create Date End": dateOrAll($("asnEnd")),
-        "Pickup Date Start": dateOrAll($("pickupStart")),
-        "Pickup Date End": dateOrAll($("pickupEnd")),
-        "Delivered Date Start": dateOrAll($("deliveredStart")),
-        "Delivered Date End": dateOrAll($("deliveredEnd")),
-        "Last Scan Event": getMultiSelectValues($("lastScanEvent")),
-        "Last Scan Event Date Start": dateOrAll($("lastScanStart")),
-        "Last Scan Event Date End": dateOrAll($("lastScanEnd")),
-        "Driver": getMultiSelectValues($("driver")),
-        "Trip": getMultiSelectValues($("trip")),
-        "SLA": getMultiSelectValues($("sla")),
-      },
-      apply_auto_limit: false
-    };
-  }
-
-  function normalizeResults(json) {
-    const qr = json?.data?.query_result ?? json?.query_result ?? json;
-    const data = qr?.data ?? qr;
-    return { columns: data?.columns ?? [], rows: data?.rows ?? [] };
-  }
-
-  function escapeHtml(s) {
-    return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
-  }
-
   function clearTable() {
-    $("thead").innerHTML = "";
+    $("theadRow").innerHTML = "";
     $("tbody").innerHTML = "";
-    $("exportBtn").disabled = true;
-    $("countPill").textContent = "Rows: 0";
-    $("timePill").textContent = "Time: —";
+    $("rowsPill").textContent = "Rows: 0";
+    $("countPill").textContent = "";
+    window.__lastResults = null;
   }
 
-  function renderTable(columns, rows) {
-    const colNames = columns.map(c => c?.friendly_name || c?.name || "");
-    $("thead").innerHTML = `<tr>${colNames.map(n => `<th>${escapeHtml(n)}</th>`).join("")}</tr>`;
-
-    $("tbody").innerHTML = rows.map(r => {
-      return `<tr>${columns.map(c => {
-        const key = c?.name;
-        const val = (key && r && Object.prototype.hasOwnProperty.call(r, key)) ? r[key] : "";
-        return `<td>${escapeHtml(val)}</td>`;
-      }).join("")}</tr>`;
-    }).join("");
-
-    $("countPill").textContent = `Rows: ${rows.length}`;
-    $("exportBtn").disabled = rows.length === 0;
-    window.__lastResults = { columns, rows };
-  }
-
-  function filterVisibleRows(searchText) {
-    const t = (searchText || "").toLowerCase();
-    const rows = Array.from($("tbody").querySelectorAll("tr"));
-    rows.forEach(tr => {
-      tr.style.display = !t || tr.innerText.toLowerCase().includes(t) ? "" : "none";
-    });
-  }
-
-  function toCsvValue(v) {
-    const s = String(v ?? "");
-    const needsWrap = /[",\n\r]/.test(s);
+  function toCsvValue(value) {
+    const s = String(value ?? "");
+    const needsWrap = /[,"\r\n]/.test(s);
     const escaped = s.replaceAll('"', '""');
     return needsWrap ? `"${escaped}"` : escaped;
   }
@@ -367,11 +297,121 @@
     return json;
   }
 
-  async function initAuth() {
-    setStatus("Authenticating…");
-    await callJson("/api/init", { method: "POST", body: JSON.stringify({}) });
+  function normalizeResults(json) {
+    // Redash style: json.query_result.data.rows / columns
+    const columns = json?.query_result?.data?.columns || json?.query_result?.data?.columns || json?.data?.columns || [];
+    const rows = json?.query_result?.data?.rows || json?.data?.rows || [];
+    return { columns, rows };
   }
 
+  function renderTable(columns, rows) {
+    const tr = $("theadRow");
+    tr.innerHTML = "";
+    for (const c of columns) {
+      const th = document.createElement("th");
+      th.textContent = c?.friendly_name || c?.name || "";
+      tr.appendChild(th);
+    }
+
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    for (const r of rows) {
+      const rowEl = document.createElement("tr");
+      for (const c of columns) {
+        const td = document.createElement("td");
+        td.textContent = r?.[c?.name] ?? "";
+        rowEl.appendChild(td);
+      }
+      tb.appendChild(rowEl);
+    }
+
+    $("rowsPill").textContent = `Rows: ${rows.length}`;
+    $("countPill").textContent = rows.length ? `Showing ${rows.length} rows` : "";
+    window.__lastResults = { columns, rows };
+  }
+
+  function getMultiValues(id) {
+    const el = $(id);
+    const selected = Array.from(el.selectedOptions).map(o => o.value);
+    if (selected.includes("ALL")) return ["ALL"];
+    return selected.length ? selected : ["ALL"];
+  }
+
+  function buildPayloadFromUI() {
+    return {
+      id: QUERY_ID,
+      parameters: {
+        "AirbillNo": getMultiValues("airbillNo").join(","),
+        "BillToCustomerCode": getMultiValues("billToCode").join(","),
+        "BillToCustomerName": getMultiValues("billToName").join(","),
+        "ServiceType": getMultiValues("serviceType").join(","),
+        "ArriveHub": getMultiValues("arriveHub").join(","),
+        "ASNCreateDateStart": $("asnStart").value || "",
+        "ASNCreateDateEnd": $("asnEnd").value || "",
+        "PickupDateStart": $("pickupStart").value || "",
+        "PickupDateEnd": $("pickupEnd").value || "",
+        "DeliveredDateStart": $("deliveredStart").value || "",
+        "DeliveredDateEnd": $("deliveredEnd").value || "",
+        "LastScanEvent": getMultiValues("lastScanEvent").join(","),
+        "LastScanEventDateStart": $("lastScanStart").value || "",
+        "LastScanEventDateEnd": $("lastScanEnd").value || "",
+        "Driver": getMultiValues("driver").join(","),
+        "Trip": getMultiValues("trip").join(","),
+        "SLA": getMultiValues("sla").join(","),
+      }
+    };
+  }
+
+  // ----------------------------
+  // Auth flow (NEW)
+  // ----------------------------
+  let authed = false;
+
+  function setAuthed(state) {
+    authed = !!state;
+    $("runBtn").disabled = !authed;
+    $("authPill").textContent = authed ? "Logged in" : "Not logged in";
+    $("authPill").className = "pill" + (authed ? "" : " error");
+  }
+
+  async function tryReuseSessionOnLoad() {
+    try {
+      setStatus("Checking session…");
+      await callJson("/api/init", { method: "POST", body: JSON.stringify({}) });
+      setAuthed(true);
+      setStatus("Idle");
+    } catch (e) {
+      setAuthed(false);
+      setStatus("Login required");
+      showError("Login required. Enter your OMS username/password and click Login.");
+    }
+  }
+
+  async function login() {
+    showError("");
+    setStatus("Authenticating…");
+    try {
+      const username = $("username").value.trim();
+      const password = $("password").value;
+      if (!username || !password) throw new Error("Enter username and password.");
+
+      await callJson("/api/init", {
+        method: "POST",
+        body: JSON.stringify({ username, password })
+      });
+
+      setAuthed(true);
+      setStatus("Idle");
+    } catch (e) {
+      setAuthed(false);
+      setStatus("Error", "error");
+      showError(e?.message || String(e));
+    }
+  }
+
+  // ----------------------------
+  // Query flow
+  // ----------------------------
   async function runQuery() {
     showError("");
     clearTable();
@@ -388,10 +428,16 @@
       $("timePill").textContent = `Time: ${Math.round(performance.now() - start)} ms`;
       setStatus("Done");
     } catch (e) {
+      const msg = e?.message || String(e);
       setStatus("Error", "error");
-      showError(e?.message || String(e));
+      showError(msg);
+
+      // If session expired, prompt re-login
+      if (/login required|not authenticated|http 401/i.test(msg)) {
+        setAuthed(false);
+      }
     } finally {
-      $("runBtn").disabled = false;
+      $("runBtn").disabled = !authed;
     }
   }
 
@@ -417,21 +463,17 @@
     downloadFile(`results_${QUERY_ID}_${stamp}.csv`, csv, "text/csv;charset=utf-8");
   }
 
+  $("loginBtn").addEventListener("click", login);
   $("runBtn").addEventListener("click", runQuery);
   $("resetBtn").addEventListener("click", resetFilters);
   $("exportBtn").addEventListener("click", exportCsv);
-  $("searchBox").addEventListener("input", (e) => filterVisibleRows(e.target.value));
 
-  // On load: init auth, then auto-run query with defaults
-  (async function boot(){
-    try {
-      await initAuth();
-      await runQuery();
-    } catch (e) {
-      setStatus("Error", "error");
-      showError(e?.message || String(e));
-    }
-  })();
+  // Initialize defaults like your screenshot used
+  $("asnStart").value = "2026-01-07";
+  $("asnEnd").value = "2026-01-07";
+
+  // Attempt to reuse session on load (no env login anymore)
+  tryReuseSessionOnLoad();
 </script>
 </body>
 </html>
