@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OMS BI Query Runner</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background:#f6f7fb; color:#111; }
+    header { padding: 16px 18px; background: #111827; color: #fff; }
+    header h1 { margin:0; font-size: 16px; font-weight: 650; }
+    header p { margin:6px 0 0; font-size: 12px; opacity: .85; }
+    .wrap { padding: 14px 18px 26px; max-width: 1400px; margin: 0 auto; }
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 1px 1px rgba(0,0,0,.03); }
+    .filters { padding: 14px; }
+    .grid { display:grid; grid-template-columns: repeat(6, minmax(160px, 1fr)); gap: 10px; }
+    @media (max-width: 1200px){ .grid{ grid-template-columns: repeat(4, minmax(160px, 1fr)); } }
+    @media (max-width: 900px){ .grid{ grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    label { font-size: 12px; color:#374151; }
+    input, select {
+      height: 34px;
+      border-radius: 9px;
+      border: 1px solid #d1d5db;
+      padding: 0 10px;
+      font-size: 13px;
+      background:#fff;
+      outline: none;
+    }
+    input[type="date"] { padding-right: 6px; }
+    input:focus, select:focus { border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; padding-top: 10px; }
+    .btn {
+      height: 36px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 12px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      background:#4f46e5;
+      color:#fff;
+    }
+    .btn.secondary { background:#111827; }
+    .btn.ghost { background: #f3f4f6; color:#111827; border:1px solid #e5e7eb; }
+    .btn:disabled { opacity:.55; cursor:not-allowed; }
+    .meta { font-size: 12px; color:#6b7280; }
+    .divider { height:1px; background:#e5e7eb; }
+    .results { padding: 14px; }
+    .status { display:flex; justify-content: space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 10px; }
+    .pill { font-size: 12px; background:#f3f4f6; border:1px solid #e5e7eb; padding: 6px 10px; border-radius: 999px; color:#111827; }
+    .error { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
+    .tableWrap { overflow:auto; border:1px solid #e5e7eb; border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { position: sticky; top: 0; background:#f9fafb; border-bottom:1px solid #e5e7eb; text-align:left; padding: 10px; white-space:nowrap; }
+    tbody td { border-top:1px solid #f1f5f9; padding: 9px 10px; white-space:nowrap; }
+    tbody tr:hover { background:#fafafa; }
+    .small { font-size: 11px; color:#6b7280; }
+    .right { margin-left:auto; }
+    .inputs-inline { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .hint { font-size: 12px; color:#6b7280; margin-top: 8px; }
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; background:#f3f4f6; border:1px solid #e5e7eb; padding:2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>OMS BI Query Runner (Single File UI)</h1>
+  <p>Front-end only. Calls your backend endpoint to execute the BI “results” query and renders a clean table + CSV export.</p>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="filters">
+      <div class="grid" id="filterGrid">
+        <!-- Dropdowns -->
+        <div class="field">
+          <label for="airbillNo">AirbillNo</label>
+          <select id="airbillNo" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="billToCode">Bill to Customer Code</label>
+          <select id="billToCode" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="billToName">Bill to Customer Name</label>
+          <select id="billToName" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="serviceType">Service Type</label>
+          <select id="serviceType" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="arriveHub">Arrive Hub</label>
+          <select id="arriveHub" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="asnStart">ASN Create Date Start</label>
+          <input id="asnStart" type="date" value="2026-01-07" />
+          <div class="small">Use YYYY-MM-DD</div>
+        </div>
+
+        <div class="field">
+          <label for="asnEnd">ASN Create Date End</label>
+          <input id="asnEnd" type="date" value="2026-01-07" />
+          <div class="small">Use YYYY-MM-DD</div>
+        </div>
+
+        <div class="field">
+          <label for="pickupStart">Pickup Date Start</label>
+          <input id="pickupStart" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="pickupEnd">Pickup Date End</label>
+          <input id="pickupEnd" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="deliveredStart">Delivered Date Start</label>
+          <input id="deliveredStart" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="deliveredEnd">Delivered Date End</label>
+          <input id="deliveredEnd" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="lastScanEvent">Last Scan Event</label>
+          <select id="lastScanEvent" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="lastScanStart">Last Scan Event Date Start</label>
+          <input id="lastScanStart" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="lastScanEnd">Last Scan Event Date End</label>
+          <input id="lastScanEnd" type="date" />
+          <div class="small">Blank = ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="driver">Driver</label>
+          <select id="driver" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="trip">Trip</label>
+          <select id="trip" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+
+        <div class="field">
+          <label for="sla">SLA</label>
+          <select id="sla" multiple size="1" title="Hold Ctrl/⌘ to multi-select">
+            <option value="ALL" selected>ALL</option>
+          </select>
+          <div class="small">Multi-select. Default: ALL</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="runBtn">Run Query</button>
+        <button class="btn ghost" id="resetBtn" type="button">Reset</button>
+
+        <span class="meta right" id="metaText">Endpoint: <span class="kbd">/api/results</span> | QueryId: <span class="kbd">5617</span></span>
+      </div>
+
+      <div class="hint">
+        This UI expects your Vercel backend route <span class="kbd">/api/results</span> to accept the JSON payload shown below and return Redash-style results.
+        If your backend uses a different route/name, update <span class="kbd">API_ENDPOINT</span> in the script.
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="results">
+      <div class="status">
+        <div class="inputs-inline">
+          <span class="pill" id="statusPill">Idle</span>
+          <span class="pill" id="countPill">Rows: 0</span>
+          <span class="pill" id="timePill">Time: —</span>
+        </div>
+
+        <div class="inputs-inline">
+          <input id="searchBox" type="text" placeholder="Filter visible table rows..." style="width: 280px;" />
+          <button class="btn secondary" id="exportBtn" disabled>Export CSV</button>
+        </div>
+      </div>
+
+      <div id="errorBox" class="pill error" style="display:none; margin-bottom: 10px;"></div>
+
+      <div class="tableWrap">
+        <table id="resultsTable">
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="hint">
+        Tip: multi-select dropdowns using <span class="kbd">Ctrl</span>/<span class="kbd">⌘</span>. Leaving date inputs blank sends <span class="kbd">"ALL"</span>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /*****************************************************************
+   * CONFIG
+   *****************************************************************/
+  const API_ENDPOINT = "/api/results"; // <-- change if your backend route differs
+  const QUERY_ID = 5617;
+
+  /*****************************************************************
+   * HELPERS
+   *****************************************************************/
+  const $ = (id) => document.getElementById(id);
+
+  function setStatus(text, type = "idle") {
+    const pill = $("statusPill");
+    pill.textContent = text;
+    pill.className = "pill";
+    if (type === "error") pill.classList.add("error");
+  }
+
+  function showError(msg) {
+    const box = $("errorBox");
+    if (!msg) { box.style.display = "none"; box.textContent = ""; return; }
+    box.style.display = "block";
+    box.textContent = msg;
+  }
+
+  function getMultiSelectValues(selectEl) {
+    const selected = Array.from(selectEl.selectedOptions).map(o => o.value).filter(v => v !== "");
+    // If nothing selected, treat as ALL (matches screenshot behavior)
+    return selected.length ? selected : ["ALL"];
+  }
+
+  function dateOrAll(inputEl) {
+    const v = (inputEl.value || "").trim();
+    return v ? v : "ALL";
+  }
+
+  function buildPayloadFromUI() {
+    return {
+      id: QUERY_ID,
+      parameters: {
+        "AirbillNo": getMultiSelectValues($("airbillNo")),
+        "Bill to Customer Code": getMultiSelectValues($("billToCode")),
+        "Bill to Customer Name": getMultiSelectValues($("billToName")),
+        "Service Type": getMultiSelectValues($("serviceType")),
+        "Arrive Hub": getMultiSelectValues($("arriveHub")),
+        "ASN Create Date Start": dateOrAll($("asnStart")),
+        "ASN Create Date End": dateOrAll($("asnEnd")),
+        "Pickup Date Start": dateOrAll($("pickupStart")),
+        "Pickup Date End": dateOrAll($("pickupEnd")),
+        "Delivered Date Start": dateOrAll($("deliveredStart")),
+        "Delivered Date End": dateOrAll($("deliveredEnd")),
+        "Last Scan Event": getMultiSelectValues($("lastScanEvent")),
+        "Last Scan Event Date Start": dateOrAll($("lastScanStart")),
+        "Last Scan Event Date End": dateOrAll($("lastScanEnd")),
+        "Driver": getMultiSelectValues($("driver")),
+        "Trip": getMultiSelectValues($("trip")),
+        "SLA": getMultiSelectValues($("sla")),
+      },
+      apply_auto_limit: false
+    };
+  }
+
+  // Accept Redash-style response shapes:
+  // - data.query_result.data.columns + rows
+  // - query_result.data.columns + rows
+  // - { columns: [...], rows: [...] } if your backend normalizes it
+  function normalizeResults(json) {
+    let qr =
+      json?.data?.query_result ??
+      json?.query_result ??
+      json;
+
+    const data = qr?.data ?? qr;
+
+    const columns = data?.columns ?? [];
+    // Redash often returns rows under "rows". Sometimes "data" already is {columns, rows}.
+    const rows = data?.rows ?? [];
+
+    return { columns, rows, raw: json };
+  }
+
+  function clearTable() {
+    $("thead").innerHTML = "";
+    $("tbody").innerHTML = "";
+    $("exportBtn").disabled = true;
+    $("countPill").textContent = "Rows: 0";
+    $("timePill").textContent = "Time: —";
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function renderTable(columns, rows) {
+    const thead = $("thead");
+    const tbody = $("tbody");
+
+    const colNames = columns.map(c => c?.friendly_name || c?.name || "");
+    thead.innerHTML = `<tr>${colNames.map(n => `<th>${escapeHtml(n)}</th>`).join("")}</tr>`;
+
+    tbody.innerHTML = rows.map(r => {
+      return `<tr>${
+        columns.map(c => {
+          const key = c?.name;
+          const val = (key && r && Object.prototype.hasOwnProperty.call(r, key)) ? r[key] : "";
+          return `<td>${escapeHtml(val)}</td>`;
+        }).join("")
+      }</tr>`;
+    }).join("");
+
+    $("countPill").textContent = `Rows: ${rows.length}`;
+    $("exportBtn").disabled = rows.length === 0;
+
+    // store for export + filtering
+    window.__lastResults = { columns, rows };
+  }
+
+  function filterVisibleRows(searchText) {
+    const t = (searchText || "").toLowerCase();
+    const tbody = $("tbody");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    if (!t) {
+      rows.forEach(tr => tr.style.display = "");
+      return;
+    }
+    rows.forEach(tr => {
+      const rowText = tr.innerText.toLowerCase();
+      tr.style.display = rowText.includes(t) ? "" : "none";
+    });
+  }
+
+  function toCsvValue(v) {
+    // Convert to string, escape quotes, wrap if needed
+    const s = String(v ?? "");
+    const needsWrap = /[",\n\r]/.test(s);
+    const escaped = s.replaceAll('"', '""');
+    return needsWrap ? `"${escaped}"` : escaped;
+  }
+
+  function buildCsv(columns, rows) {
+    const headers = columns.map(c => c?.friendly_name || c?.name || "");
+    const keys = columns.map(c => c?.name || "");
+    const lines = [];
+    lines.push(headers.map(toCsvValue).join(","));
+    for (const r of rows) {
+      const line = keys.map(k => toCsvValue(r?.[k] ?? ""));
+      lines.push(line.join(","));
+    }
+    return lines.join("\r\n");
+  }
+
+  function downloadFile(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /*****************************************************************
+   * MAIN ACTION: RUN QUERY
+   *****************************************************************/
+  async function runQuery() {
+    showError("");
+    clearTable();
+    $("runBtn").disabled = true;
+    setStatus("Running…");
+    const start = performance.now();
+
+    const payload = buildPayloadFromUI();
+
+    try {
+      // If your backend needs cookies, keep credentials included.
+      const res = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+      let json;
+      try { json = JSON.parse(text); } catch {
+        throw new Error(`Backend did not return JSON. HTTP ${res.status}. Body: ${text.slice(0, 250)}…`);
+      }
+
+      if (!res.ok) {
+        const msg = json?.error || json?.message || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      const { columns, rows } = normalizeResults(json);
+
+      if (!Array.isArray(columns) || !Array.isArray(rows)) {
+        throw new Error("Unexpected response shape. Expected columns[] and rows[].");
+      }
+
+      renderTable(columns, rows);
+
+      const ms = Math.round(performance.now() - start);
+      $("timePill").textContent = `Time: ${ms} ms`;
+      setStatus("Done");
+    } catch (err) {
+      setStatus("Error", "error");
+      showError(err?.message || String(err));
+    } finally {
+      $("runBtn").disabled = false;
+    }
+  }
+
+  /*****************************************************************
+   * RESET
+   *****************************************************************/
+  function resetFilters() {
+    // Reset selects to ALL only
+    const multiSelectIds = ["airbillNo","billToCode","billToName","serviceType","arriveHub","lastScanEvent","driver","trip","sla"];
+    multiSelectIds.forEach(id => {
+      const el = $(id);
+      Array.from(el.options).forEach(o => o.selected = (o.value === "ALL"));
+    });
+
+    // Reset dates
+    $("asnStart").value = "2026-01-07";
+    $("asnEnd").value = "2026-01-07";
+    ["pickupStart","pickupEnd","deliveredStart","deliveredEnd","lastScanStart","lastScanEnd"].forEach(id => $(id).value = "");
+
+    $("searchBox").value = "";
+    showError("");
+    clearTable();
+    setStatus("Idle");
+  }
+
+  /*****************************************************************
+   * EXPORT
+   *****************************************************************/
+  function exportCsv() {
+    const data = window.__lastResults;
+    if (!data || !data.columns || !data.rows) return;
+
+    // Export the FULL dataset (not only visible filtered rows)
+    const csv = buildCsv(data.columns, data.rows);
+    const stamp = new Date().toISOString().slice(0,19).replaceAll(":","-");
+    downloadFile(`results_${QUERY_ID}_${stamp}.csv`, csv, "text/csv;charset=utf-8");
+  }
+
+  /*****************************************************************
+   * WIRING
+   *****************************************************************/
+  $("runBtn").addEventListener("click", runQuery);
+  $("resetBtn").addEventListener("click", resetFilters);
+  $("exportBtn").addEventListener("click", exportCsv);
+  $("searchBox").addEventListener("input", (e) => filterVisibleRows(e.target.value));
+
+  // Allow Enter to run query when focus is in filters
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      const tag = (document.activeElement?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "select") {
+        e.preventDefault();
+        runQuery();
+      }
+    }
+  });
+
+  // Initialize state
+  resetFilters();
+
+  /*****************************************************************
+   * OPTIONAL: Populate dropdowns dynamically
+   * ---------------------------------------------------------------
+   * Right now, dropdowns only include ALL. If you want real option
+   * lists (e.g., Service Type values), your backend can expose an
+   * endpoint like GET /api/filter-options that returns:
+   * { serviceType: ["GND","PRI"], arriveHub: ["DAL","DFW"], ... }
+   * Then you can populate selects here.
+   *****************************************************************/
+</script>
+</body>
+</html>
