@@ -98,23 +98,36 @@ async function getIamAuthCode() {
   return code;
 }
 
-async function exchangeCodeForOmsToken(code) {
+async function exchangeCodeForOmsToken(iamCode) {
   const r = await fetch(`${OMS_BASE}/api/linker-oms/opc/iam/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       grantType: "authorization_code",
-      iamCode: code,
+      iamCode,
       redirectUrl: "https://omsv2.item.com/auth-code"
     })
   });
 
-  const json = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(json?.message || json?.error || `OMS token exchange failed HTTP ${r.status}`);
-  // Adjust key name if your response differs
-  const accessToken = json?.access_token || json?.accessToken || json?.token;
-  if (!accessToken) throw new Error("OMS token exchange succeeded but no access token field was found");
-  return accessToken;
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`OMS token exchange failed ${r.status}: ${t.slice(0,200)}`);
+  }
+
+  // 🔥 Extract access_token from Set-Cookie
+  const raw = r.headers.raw?.()["set-cookie"] || [];
+  const cookie = raw.find(c => c.startsWith("access_token="));
+
+  if (!cookie) {
+    throw new Error("OMS token cookie not found in Set-Cookie");
+  }
+
+  const token = cookie
+    .split(";")[0]
+    .replace("access_token=", "")
+    .replace(/^"|"$/g, "");
+
+  return token;
 }
 
 async function getBiIdToken(omsAccessToken) {
