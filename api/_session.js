@@ -1,3 +1,4 @@
+export const config = { runtime: "nodejs" };
 import tough from "tough-cookie";
 import fetchCookie from "fetch-cookie";
 
