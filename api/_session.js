@@ -99,10 +99,15 @@ async function getIamAuthCode() {
   return code;
 }
 
-async function exchangeCodeForOmsToken(iamCode) {
+async function exchangeCodeForOmsToken(iamCode, cookieJar = "") {
+
   const r = await fetch(`${OMS_BASE}/api/linker-oms/opc/iam/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    redirect: "manual",   // 🔥 critical
+    headers: {
+      "Content-Type": "application/json",
+      ...(cookieJar ? { cookie: cookieJar } : {})
+    },
     body: JSON.stringify({
       grantType: "authorization_code",
       iamCode,
@@ -110,25 +115,28 @@ async function exchangeCodeForOmsToken(iamCode) {
     })
   });
 
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`OMS token exchange failed ${r.status}: ${t.slice(0,200)}`);
+  const setCookies = r.headers.raw()["set-cookie"] || [];
+
+  const mergedJar = [
+    cookieJar,
+    ...setCookies.map(c => c.split(";")[0])
+  ].filter(Boolean).join("; ");
+
+  const access = setCookies.find(c => c.startsWith("access_token="));
+
+  if (access) {
+    return access.split(";")[0].replace("access_token=", "");
   }
 
-  // 🔥 Extract access_token from Set-Cookie
-  const raw = r.headers.raw?.()["set-cookie"] || [];
-  const cookie = raw.find(c => c.startsWith("access_token="));
+  // 🔥 if redirect happened, follow it with cookies
+  if (r.status === 302 || r.status === 303) {
+    const loc = r.headers.get("location");
+    if (!loc) throw new Error("Redirect without location");
 
-  if (!cookie) {
-    throw new Error("OMS token cookie not found in Set-Cookie");
+    return exchangeCodeForOmsToken(iamCode, mergedJar);
   }
 
-  const token = cookie
-    .split(";")[0]
-    .replace("access_token=", "")
-    .replace(/^"|"$/g, "");
-
-  return token;
+  throw new Error("OMS token cookie not captured — redirect chain likely incomplete");
 }
 
 async function getBiIdToken(omsAccessToken) {
