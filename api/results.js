@@ -1,3 +1,4 @@
+export const config = { runtime: "nodejs" };
 import { callBiResults } from "./_session.js";
 
 export default async function handler(req, res) {
